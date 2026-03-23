@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Kafzin"/>
+<meta name="theme-color" content="#2c1a0e"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<title>Kafzin — Lavoura & Chuvas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════
+   RESET & TOKENS
+═══════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f5f0e8;--white:#fff;--border:#dfd5c8;
+  --brown:#2c1a0e;--brown-mid:#5a3a24;
+  --gold:#9a6a32;--gold-lt:#c49050;--gold-pale:#fdf4e7;
+  --green:#3b6332;--green-lt:#6a9e58;--green-soft:#edf4eb;--green-bd:#b8d4b4;
+  --blue:#1a5f8a;--blue-lt:#2d89c8;--blue-pale:#e8f4fb;
+  --amber:#c47a1a;--red:#a83228;
+  --text:#1e1208;--muted:#87756a;--light:#ede8df;
+  --r:14px;--rs:8px;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bot:env(safe-area-inset-bottom,16px);
+}
+
+html,body{height:100%;width:100%;overflow:hidden;background:var(--brown)}
+
+body{
+  font-family:'Helvetica Neue',Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+}
+
+/* ═══════════════════════════════════════════
+   APP SHELL
+═══════════════════════════════════════════ */
+.app-safe-top{height:var(--safe-top);background:var(--brown);flex-shrink:0}
+
+/* Top bar */
+.top-bar{
+  background:var(--brown);
+  padding:12px 18px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-shrink:0;
+  box-shadow:0 2px 12px rgba(0,0,0,.3);
+}
+.top-bar-logo{
+  font-family:Georgia,serif;
+  font-size:22px;
+  font-weight:bold;
+  color:#fff;
+  letter-spacing:.5px;
+}
+.top-bar-logo span{font-style:italic;color:var(--gold-lt)}
+.top-bar-tag{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.35)}
+
+/* Tab bar */
+.tab-bar{
+  background:var(--brown);
+  display:flex;
+  border-top:1px solid rgba(255,255,255,.08);
+  flex-shrink:0;
+}
+.tab-btn{
+  flex:1;
+  background:transparent;
+  border:none;
+  color:rgba(255,255,255,.45);
+  font-family:inherit;
+  font-size:10px;
+  letter-spacing:.5px;
+  padding:10px 8px 12px;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:3px;
+  transition:all .18s;
+  border-top:2px solid transparent;
+}
+.tab-btn .tab-ico{font-size:20px;line-height:1}
+.tab-btn.active{color:#fff;border-top-color:var(--gold-lt)}
+
+/* Scroll area */
+.scroll-area{
+  flex:1;
+  overflow-y:auto;
+  overflow-x:hidden;
+  background:var(--bg);
+  -webkit-overflow-scrolling:touch;
+}
+.scroll-area::-webkit-scrollbar{display:none}
+
+/* Bottom safe area */
+.app-safe-bot{height:var(--safe-bot);background:var(--bg);flex-shrink:0}
+
+/* ═══════════════════════════════════════════
+   PANELS
+═══════════════════════════════════════════ */
+.panel{display:none}
+.panel.active{display:block}
+
+/* ═══════════════════════════════════════════
+   PANEL HEADER
+═══════════════════════════════════════════ */
+.panel-hdr{
+  background:linear-gradient(135deg,#2c1a0e 0%,#48280f 60%,#5a3a24 100%);
+  padding:22px 18px 20px;
+  position:relative;
+  overflow:hidden;
+}
+.panel-hdr::before{
+  content:attr(data-emoji);
+  position:absolute;right:14px;bottom:-12px;
+  font-size:80px;opacity:.07;line-height:1;pointer-events:none
+}
+.ph-kicker{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold-lt);opacity:.8;margin-bottom:6px;font-weight:600}
+.panel-hdr h1{font-family:Georgia,serif;font-size:clamp(20px,5vw,28px);font-weight:normal;color:#fff;line-height:1.15;margin-bottom:5px}
+.panel-hdr h1 em{font-style:italic;color:var(--gold-lt)}
+.panel-hdr p{font-size:12px;color:rgba(255,255,255,.5);line-height:1.65;max-width:300px}
+
+/* ═══════════════════════════════════════════
+   INNER CONTENT
+═══════════════════════════════════════════ */
+.inner{padding:16px 14px calc(16px + var(--safe-bot))}
+
+/* ═══════════════════════════════════════════
+   CARDS
+═══════════════════════════════════════════ */
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px 14px;box-shadow:0 1px 5px rgba(44,26,14,.07);margin-bottom:12px}
+.step-lbl{display:flex;align-items:center;gap:8px;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:13px}
+.step-lbl .sn{width:19px;height:19px;border-radius:50%;background:var(--gold);color:#fff;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ═══════════════════════════════════════════
+   FORM ELEMENTS
+═══════════════════════════════════════════ */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+
+.field{margin-bottom:0}
+.field label{display:block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:6px}
+.fw{position:relative}
+.fw .u{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted);pointer-events:none}
+.field input[type="number"],.field input[type="text"]{
+  width:100%;background:var(--light);border:1.5px solid var(--border);
+  color:var(--text);font-family:inherit;
+  font-size:16px; /* 16px prevents iOS zoom */
+  padding:11px 12px;border-radius:var(--rs);outline:none;
+  transition:border-color .2s,background .2s;-webkit-appearance:none;
+}
+.field input:focus{border-color:var(--gold);background:var(--white)}
+.field input.blue:focus{border-color:var(--blue-lt)}
+.field input::placeholder{color:var(--muted);opacity:.4}
+.field .hint{font-size:10px;color:var(--muted);margin-top:4px;opacity:.7}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
+input[type=number]{-moz-appearance:textfield}
+
+/* ── SEGMENTED ── */
+.seg{display:flex;background:var(--light);border:1.5px solid var(--border);border-radius:var(--rs);padding:3px;gap:3px}
+.seg-btn{flex:1;background:transparent;border:none;border-radius:6px;font-family:inherit;font-size:12px;color:var(--muted);padding:9px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .18s}
+.seg-btn .si{font-size:18px;line-height:1}
+.seg-btn .st{font-size:11px;letter-spacing:.3px}
+.seg-btn.active{background:var(--brown);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(44,26,14,.2)}
+
+/* ── VARIETY ── */
+.var-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.var-btn{background:var(--light);border:1.5px solid var(--border);border-radius:var(--rs);padding:11px 9px;cursor:pointer;text-align:left;transition:all .16s}
+.var-btn.active{background:var(--green-soft);border-color:var(--green)}
+.var-btn .vn{font-family:Georgia,serif;font-size:13px;font-style:italic;color:var(--brown);display:block;margin-bottom:2px}
+.var-btn.active .vn{color:var(--green)}
+.var-btn .vs{font-size:10px;color:var(--muted)}
+
+/* ── SPACING ── */
+.smode{display:flex;background:var(--light);border:1.5px solid var(--border);border-radius:var(--rs);overflow:hidden;margin-bottom:12px}
+.smode-btn{flex:1;background:transparent;border:none;border-right:1px solid var(--border);font-family:inherit;font-size:12px;color:var(--muted);padding:10px 8px;cursor:pointer;transition:all .18s;text-align:center}
+.smode-btn:last-child{border-right:none}
+.smode-btn.active{background:var(--brown);color:#fff;font-weight:600}
+.sug-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px}
+.sug-pill{background:var(--green-soft);border:1px solid var(--green-bd);border-radius:var(--rs);padding:8px 10px;display:flex;justify-content:space-between;align-items:center}
+.sug-pill .sp-l{font-size:10px;color:var(--green);opacity:.75}
+.sug-pill .sp-v{font-size:13px;font-weight:600;color:var(--green)}
+.custom-fields{display:none;flex-direction:column;gap:10px}
+.custom-fields.visible{display:flex}
+.apply-sug{width:100%;background:transparent;border:1.5px dashed var(--gold-lt);border-radius:var(--rs);font-family:inherit;font-size:11px;color:var(--gold);padding:8px;cursor:pointer;text-align:center}
+.esp-warn{display:none;background:#fff8e1;border:1px solid #ffe082;border-radius:var(--rs);padding:8px 10px;font-size:11px;color:#7a5500;line-height:1.5}
+.esp-warn.visible{display:block}
+
+/* ── COSTS ── */
+.costs-bar{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.costs-bar .ct-l{display:flex;align-items:center;gap:8px;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);font-weight:600}
+.costs-bar .ct-l .sn{width:19px;height:19px;border-radius:50%;background:var(--gold);color:#fff;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.costs-bar .chev{font-size:11px;color:var(--muted);transition:transform .2s}
+.costs-bar.open .chev{transform:rotate(180deg)}
+.costs-body{display:none;margin-top:13px}
+.costs-body.visible{display:block}
+
+/* ── CITY SEARCH ── */
+.city-wrap{position:relative}
+.city-sugs{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--white);border:1.5px solid var(--border);border-radius:var(--rs);box-shadow:0 8px 20px rgba(44,26,14,.15);z-index:300;max-height:180px;overflow-y:auto;display:none}
+.city-sugs.open{display:block}
+.city-sug{padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s}
+.city-sug:last-child{border-bottom:none}
+.city-sug:active{background:var(--blue-pale)}
+.city-sug .csn{font-weight:600;color:var(--brown);display:block;font-size:13px}
+.city-sug .csd{font-size:11px;color:var(--muted)}
+.city-badge{display:none;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--green);background:var(--green-soft);border:1px solid var(--green-bd);border-radius:99px;padding:3px 10px}
+.city-badge.show{display:inline-flex}
+.city-clear{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 0 0 2px}
+.rain-hint{font-size:11px;color:var(--blue-lt);margin-top:5px;display:none}
+
+/* ── CALC BUTTON ── */
+.calc-btn{
+  width:100%;background:var(--brown);border:none;color:#fff;
+  font-family:Georgia,serif;font-size:18px;font-style:italic;font-weight:bold;
+  padding:16px 24px;border-radius:var(--r);cursor:pointer;
+  box-shadow:0 4px 14px rgba(44,26,14,.25);
+  transition:all .2s;margin-bottom:0;
+}
+.calc-btn:active{background:var(--gold);transform:scale(.98)}
+
+/* ═══════════════════════════════════════════
+   RESULTS SCREEN
+═══════════════════════════════════════════ */
+.results-panel{background:var(--white);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(44,26,14,.1);overflow:hidden;margin-bottom:12px}
+.rp-hdr{background:var(--brown);padding:14px 16px}
+.rp-hdr h2{font-family:Georgia,serif;font-size:17px;font-weight:normal;color:#fff;margin-bottom:2px}
+.rp-hdr h2 em{font-style:italic;color:var(--gold-lt)}
+.rp-sub{font-size:11px;color:rgba(255,255,255,.38);letter-spacing:.3px}
+.rp-body{padding:14px;display:flex;flex-direction:column;gap:9px}
+
+.empty-st{text-align:center;padding:24px 12px}
+.empty-ico{font-size:34px;opacity:.3;display:block;margin-bottom:8px}
+.empty-st p{font-size:12px;color:var(--muted);line-height:1.7;opacity:.7}
+
+.res-rows{display:flex;flex-direction:column}
+.rrow{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.rrow:last-child{border-bottom:none}
+.rrow .rl{font-size:10px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase;line-height:1.3;max-width:110px}
+.rrow .rv{font-family:Georgia,serif;font-size:22px;color:var(--gold);text-align:right;line-height:1}
+.rrow .rv small{display:block;font-family:inherit;font-size:10px;color:var(--muted);font-weight:300;margin-top:2px;font-style:normal}
+.rrow.grn .rv{color:var(--green)}
+.rrow.brn .rv{color:var(--brown-mid)}
+
+.cfg-tag{background:var(--gold-pale);border:1px solid #e8c88a;border-radius:99px;padding:4px 12px;font-size:10px;color:var(--gold);text-align:center}
+.cost-sum{background:var(--light);border:1px solid var(--border);border-radius:var(--rs);padding:12px}
+.cs-title{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:8px}
+.cs-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)}
+.cs-row:last-child{border-bottom:none}
+.cs-row .csl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.cs-row .csv{font-family:Georgia,serif;font-size:16px;color:var(--brown-mid)}
+.cs-row.tot .csl{color:var(--brown);font-weight:600;font-size:11px}
+.cs-row.tot .csv{color:var(--gold);font-size:20px}
+.agro-note{background:#fdfaf5;border:1px solid var(--border);border-left:3px solid var(--gold-lt);border-radius:0 var(--rs) var(--rs) 0;padding:9px 11px;font-size:11px;color:var(--muted);line-height:1.65}
+.res-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ract{background:var(--light);border:1.5px solid var(--border);border-radius:var(--rs);font-family:inherit;font-size:11px;font-weight:600;color:var(--brown-mid);letter-spacing:.4px;text-transform:uppercase;padding:11px;cursor:pointer;text-align:center}
+.ract:active{background:var(--border)}
+
+/* ═══════════════════════════════════════════
+   RAIN BLOCK
+═══════════════════════════════════════════ */
+.rain-block{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:12px;box-shadow:0 4px 16px rgba(44,26,14,.1)}
+.rain-hdr{background:linear-gradient(135deg,var(--blue) 0%,var(--blue-lt) 100%);padding:13px 16px}
+.rain-hdr-top{display:flex;align-items:center;justify-content:space-between}
+.rain-hdr h3{font-family:Georgia,serif;font-size:15px;font-weight:normal;color:#fff}
+.rain-hdr h3 em{font-style:italic}
+.rain-loc-tag{font-size:10px;color:rgba(255,255,255,.6);margin-top:2px}
+.rain-body{padding:13px;display:flex;flex-direction:column;gap:10px}
+
+.rain-loading{text-align:center;padding:20px;color:var(--muted);font-size:12px}
+.rain-spin{width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--blue-lt);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.rain-err{background:#fff0f0;border:1px solid #f0b8b8;border-left:3px solid var(--red);border-radius:0 var(--rs) var(--rs) 0;padding:9px 11px;font-size:11px;color:var(--red);line-height:1.6}
+
+/* risk */
+.risk-banner{border-radius:var(--rs);padding:12px 13px;display:flex;align-items:flex-start;gap:10px;border:1.5px solid transparent}
+.risk-banner.muito-seco{background:#fff0e8;border-color:#f0a060}
+.risk-banner.seco{background:#fff8e8;border-color:#f0c060}
+.risk-banner.normal{background:var(--blue-pale);border-color:#90cce8}
+.risk-banner.chuvoso{background:#e8f4e8;border-color:#90c890}
+.risk-banner.muito-chuvoso{background:#e8e8f8;border-color:#9090d8}
+.risk-ico{font-size:24px;flex-shrink:0;margin-top:1px}
+.risk-text .risk-title{font-family:Georgia,serif;font-size:13px;color:var(--brown);margin-bottom:2px}
+.risk-text .risk-title em{font-style:italic}
+.risk-text .risk-desc{font-size:11px;color:var(--muted);line-height:1.5}
+.risk-badge-row{margin-top:6px}
+.risk-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:2px 10px;border-radius:99px;border:1.5px solid currentColor}
+.risk-banner.muito-seco .risk-badge{color:#c04000}
+.risk-banner.seco .risk-badge{color:#a06010}
+.risk-banner.normal .risk-badge{color:var(--blue)}
+.risk-banner.chuvoso .risk-badge{color:var(--green)}
+.risk-banner.muito-chuvoso .risk-badge{color:#4040a8}
+
+/* rain stats */
+.rain-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.rstat{background:var(--light);border:1px solid var(--border);border-radius:var(--rs);padding:9px 6px;text-align:center;position:relative;overflow:hidden}
+.rstat::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--blue-lt);border-radius:0 0 var(--rs) var(--rs)}
+.rstat.gold::after{background:var(--gold-lt)}
+.rstat.green::after{background:var(--green-lt)}
+.rstat.amb::after{background:var(--amber)}
+.rs-lbl{font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;font-weight:600;line-height:1.3}
+.rs-val{font-family:Georgia,serif;font-size:19px;color:var(--blue-lt);line-height:1;margin-bottom:1px}
+.rstat.gold .rs-val{color:var(--gold)}
+.rstat.green .rs-val{color:var(--green)}
+.rstat.amb .rs-val{color:var(--amber)}
+.rs-unit{font-size:9px;color:var(--muted)}
+
+/* chart */
+.rain-chart-card{background:var(--light);border:1px solid var(--border);border-radius:var(--rs);padding:11px 9px 8px}
+.rain-chart-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:4px}
+.rct{font-family:Georgia,serif;font-size:13px;font-weight:normal;color:var(--brown)}
+.rct em{font-style:italic;color:var(--blue-lt)}
+.rain-leg{display:flex;gap:8px;flex-wrap:wrap}
+.rl-i{display:flex;align-items:center;gap:3px;font-size:9px;color:var(--muted)}
+.rl-d{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.chart-wrap{position:relative;height:170px}
+
+/* forecast row */
+.fc-row{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.fc-mini{background:var(--light);border:1px solid var(--border);border-radius:var(--rs);padding:8px 4px;text-align:center;position:relative;overflow:hidden}
+.fc-mini::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--green-lt)}
+.fm-mo{font-family:Georgia,serif;font-size:10px;font-style:italic;color:var(--brown);margin-bottom:2px}
+.fm-val{font-family:Georgia,serif;font-size:15px;color:var(--green);line-height:1}
+.fm-unit{font-size:8px;color:var(--muted);margin-bottom:3px}
+.fm-ico{font-size:12px}
+.fm-diff{font-size:9px;margin-top:2px;font-weight:600}
+.rain-src{font-size:10px;color:var(--blue-lt);text-align:center;opacity:.7}
+
+/* ═══════════════════════════════════════════
+   DISCLAIMER / REFS
+═══════════════════════════════════════════ */
+.disclaimer{background:#fff9f0;border:1.5px solid #e8c88a;border-radius:var(--r);padding:14px 15px;display:flex;gap:10px;margin-bottom:12px}
+.di{font-size:18px;flex-shrink:0;margin-top:1px}
+.disc-text{font-size:11px;color:var(--brown-mid);line-height:1.75}
+.disc-text strong{display:block;color:var(--brown);font-size:12px;margin-bottom:3px}
+.refs{background:var(--white);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:12px}
+.ref-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;background:var(--light);border-bottom:1px solid var(--border)}
+.ref-hdr .rhl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--brown-mid);font-weight:600;display:flex;align-items:center;gap:6px}
+.ref-chev{font-size:11px;color:var(--muted);transition:transform .2s}
+.ref-hdr.open .ref-chev{transform:rotate(180deg)}
+.ref-body{display:none;padding:12px 14px;flex-direction:column;gap:10px}
+.ref-body.visible{display:flex}
+.ref-item{padding-bottom:10px;border-bottom:1px solid var(--border)}
+.ref-item:last-child{border-bottom:none;padding-bottom:0}
+.ri-org{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:2px}
+.ri-title{font-size:12px;font-weight:600;color:var(--brown);margin-bottom:2px;line-height:1.4}
+.ri-desc{font-size:11px;color:var(--muted);line-height:1.6}
+.foot-note{text-align:center;font-size:10px;color:var(--muted);line-height:1.8;padding-bottom:8px}
+.foot-note a{color:var(--gold);text-decoration:none}
+
+/* ═══════════════════════════════════════════
+   RAIN PANEL (tab 2 standalone)
+═══════════════════════════════════════════ */
+.search-wrap{position:relative;margin-bottom:16px}
+.search-row{display:flex;gap:8px}
+.srch-inp{flex:1;background:var(--white);border:1.5px solid var(--border);color:var(--text);font-family:inherit;font-size:16px;padding:12px 13px;border-radius:var(--rs);outline:none;transition:border-color .2s}
+.srch-inp:focus{border-color:var(--blue-lt)}
+.srch-inp::placeholder{color:var(--muted);opacity:.4}
+.srch-btn{background:var(--blue);border:none;color:#fff;font-family:inherit;font-size:13px;font-weight:600;padding:12px 16px;border-radius:var(--rs);cursor:pointer;white-space:nowrap;transition:background .2s}
+.srch-btn:active{background:var(--blue-lt)}
+.srch-btn:disabled{opacity:.6;cursor:wait}
+.srch-sugs{position:absolute;top:calc(100% + 3px);left:0;right:70px;background:var(--white);border:1.5px solid var(--border);border-radius:var(--rs);box-shadow:0 8px 20px rgba(44,26,14,.12);z-index:200;max-height:180px;overflow-y:auto;display:none}
+.srch-sugs.open{display:block}
+.ss-item{padding:10px 13px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)}
+.ss-item:last-child{border-bottom:none}
+.ss-item:active{background:var(--blue-pale)}
+.ss-name{font-weight:600;color:var(--brown);display:block}
+.ss-detail{font-size:11px;color:var(--muted)}
+
+.rp-err{display:none;background:#fff0f0;border:1px solid #f0b8b8;border-left:3px solid var(--red);border-radius:0 var(--rs) var(--rs) 0;padding:9px 12px;font-size:12px;color:var(--red);line-height:1.6;margin-bottom:12px}
+.rp-err.show{display:block}
+.rp-load{display:none;text-align:center;padding:30px 0;color:var(--muted);font-size:13px;margin-bottom:12px}
+.rp-load.show{display:block}
+.rp-locb{display:none;text-align:center;margin-bottom:14px}
+.rp-locb.show{display:block}
+.rp-loc-name{font-family:Georgia,serif;font-size:15px;font-style:italic;color:var(--brown)}
+.rp-loc-coords{display:inline-block;font-size:10px;color:var(--muted);background:var(--light);border:1px solid var(--border);border-radius:99px;padding:2px 9px;margin-left:6px}
+.rp-content{display:none}
+.rp-content.show{display:block}
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+.toast{position:fixed;bottom:calc(56px + var(--safe-bot) + 12px);left:50%;transform:translateX(-50%) translateY(8px);background:var(--brown);color:#fff;font-size:13px;padding:9px 20px;border-radius:99px;opacity:0;transition:all .3s;z-index:9999;pointer-events:none;white-space:nowrap;box-shadow:0 8px 24px rgba(44,26,14,.25)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ═══════════════════════════════════════════
+   INSTALL BANNER
+═══════════════════════════════════════════ */
+.install-banner{display:none;background:var(--gold-pale);border:1px solid #e8c88a;border-radius:var(--rs);padding:10px 14px;margin-bottom:12px;align-items:center;gap:10px}
+.install-banner.show{display:flex}
+.install-banner p{font-size:12px;color:var(--brown-mid);line-height:1.5;flex:1}
+.install-banner strong{display:block;font-size:13px;color:var(--brown);margin-bottom:2px}
+.inst-btn{background:var(--gold);border:none;color:#fff;font-family:inherit;font-size:12px;font-weight:600;padding:8px 14px;border-radius:var(--rs);cursor:pointer;white-space:nowrap}
+.inst-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0;margin-left:4px}
+</style>
+</head>
+<body>
+
+<div class="app-safe-top"></div>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="top-bar-logo">Kaf<span>zin</span></div>
+  <div class="top-bar-tag">Ferramentas · v2.0</div>
+</div>
+
+<!-- SCROLL AREA -->
+<div class="scroll-area" id="scroll-area">
+
+  <!-- ══════════════════════════════
+       PANEL 1: CALCULADORA
+  ══════════════════════════════ -->
+  <div class="panel active" id="panel-calc">
+
+    <div class="panel-hdr" data-emoji="☕">
+      <div class="ph-kicker">Kafzin · Planejamento de Lavoura</div>
+      <h1>Calculadora de <em>Lavoura</em></h1>
+      <p>Pés, adubação e investimento — com dados de chuva da sua cidade.</p>
+    </div>
+
+    <div class="inner">
+
+      <!-- Install banner -->
+      <div class="install-banner" id="install-banner">
+        <div>
+          <strong>📲 Instalar o App</strong>
+          <p>Adicione à tela inicial para acesso rápido sem abrir o browser.</p>
+        </div>
+        <button class="inst-btn" id="install-btn" onclick="installApp()">Instalar</button>
+        <button class="inst-close" onclick="dismissInstall()">✕</button>
+      </div>
+
+      <!-- PASSO 1 -->
+      <div class="card">
+        <div class="step-lbl"><span class="sn">1</span>Área, Terreno e Cidade</div>
+
+        <div class="g2" style="margin-bottom:12px">
+          <div class="field">
+            <label>Área disponível</label>
+            <div class="fw">
+              <input type="number" id="c-area" inputmode="decimal" placeholder="ex: 5.000" min="1"/>
+              <span class="u">m²</span>
+            </div>
+            <p class="hint">1 ha = 10.000 m²</p>
+          </div>
+          <div class="field">
+            <label>Terreno</label>
+            <div class="seg" id="c-terreno">
+              <button class="seg-btn active" data-val="plano" onclick="cSeg(this,'c-terreno')">
+                <span class="si">🌾</span><span class="st">Plano</span>
+              </button>
+              <button class="seg-btn" data-val="morro" onclick="cSeg(this,'c-terreno')">
+                <span class="si">⛰️</span><span class="st">Morro</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Cidade <span style="font-weight:300;text-transform:none;letter-spacing:0;color:var(--muted)">(opcional — para dados de chuva)</span></label>
+          <div class="city-wrap">
+            <input type="text" id="c-city" class="blue" placeholder="ex: Americana, Poços de Caldas…"
+              autocomplete="off" oninput="cCityInp()" onkeydown="if(event.key==='Enter'){cCloseSugs();cCitySearch()}"/>
+            <div id="c-city-sugs" class="city-sugs"></div>
+          </div>
+          <div class="city-badge" id="c-city-badge">
+            <span>📍</span>
+            <span id="c-city-label"></span>
+            <button class="city-clear" onclick="cClearCity()">✕</button>
+          </div>
+          <div class="rain-hint" id="c-rain-hint">🌧️ Chuvas serão carregadas para esta cidade</div>
+        </div>
+      </div>
+
+      <!-- PASSO 2 -->
+      <div class="card">
+        <div class="step-lbl"><span class="sn">2</span>Tipo de Colheita</div>
+        <div class="seg" id="c-colheita">
+          <button class="seg-btn active" data-val="manual" onclick="cSeg(this,'c-colheita')">
+            <span class="si">🤲</span><span class="st">Manual</span>
+          </button>
+          <button class="seg-btn" data-val="mecanica" onclick="cSeg(this,'c-colheita')">
+            <span class="si">🚜</span><span class="st">Mecânica</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- PASSO 3 -->
+      <div class="card">
+        <div class="step-lbl"><span class="sn">3</span>Variedade de Café</div>
+        <div class="var-grid" id="c-vars">
+          <button class="var-btn active" data-val="bourbon_amarelo" onclick="cVar(this)"><span class="vn">Bourbon Amarelo</span><span class="vs">2,5 × 2,5m</span></button>
+          <button class="var-btn" data-val="catuai" onclick="cVar(this)"><span class="vn">Catuaí</span><span class="vs">2,0 × 2,5m</span></button>
+          <button class="var-btn" data-val="mundo_novo" onclick="cVar(this)"><span class="vn">Mundo Novo</span><span class="vs">3,0 × 3,0m</span></button>
+          <button class="var-btn" data-val="acaia" onclick="cVar(this)"><span class="vn">Acaiá</span><span class="vs">3,5 × 3,5m</span></button>
+          <button class="var-btn" data-val="icatu" onclick="cVar(this)"><span class="vn">Icatu</span><span class="vs">3,0 × 2,5m</span></button>
+          <button class="var-btn" data-val="topazio" onclick="cVar(this)"><span class="vn">Topázio</span><span class="vs">2,5 × 3,0m</span></button>
+        </div>
+      </div>
+
+      <!-- PASSO 4 -->
+      <div class="card">
+        <div class="step-lbl"><span class="sn">4</span>Espaçamento</div>
+        <div class="smode">
+          <button class="smode-btn active" data-val="sugerido" onclick="cSpacingMode(this)">✅ Sugerido</button>
+          <button class="smode-btn" data-val="personalizado" onclick="cSpacingMode(this)">✏️ Personalizado</button>
+        </div>
+        <div id="c-sug-preview">
+          <div class="sug-row">
+            <div class="sug-pill"><span class="sp-l">Entre linhas</span><span class="sp-v" id="c-sug-l">—</span></div>
+            <div class="sug-pill"><span class="sp-l">Entre plantas</span><span class="sp-v" id="c-sug-p">—</span></div>
+          </div>
+        </div>
+        <div class="custom-fields" id="c-custom">
+          <button class="apply-sug" onclick="cFillSug()">↩ Usar sugerido para <span id="c-var-name">esta variedade</span></button>
+          <div class="g2">
+            <div class="field">
+              <label>Entre linhas (m)</label>
+              <div class="fw"><input type="number" id="c-esp-l" inputmode="decimal" placeholder="ex: 3,0" step="0.1" min="0.5" max="10" oninput="cValEsp()"/><span class="u">m</span></div>
+            </div>
+            <div class="field">
+              <label>Entre plantas (m)</label>
+              <div class="fw"><input type="number" id="c-esp-p" inputmode="decimal" placeholder="ex: 0,7" step="0.1" min="0.3" max="10" oninput="cValEsp()"/><span class="u">m</span></div>
+            </div>
+          </div>
+          <div class="esp-warn" id="c-esp-warn"></div>
+        </div>
+      </div>
+
+      <!-- PASSO 5 -->
+      <div class="card">
+        <div class="costs-bar" id="c-costs-bar" onclick="cToggleCosts()">
+          <div class="ct-l"><span class="sn">5</span>Custos <span style="font-size:10px;font-weight:300;text-transform:none;letter-spacing:0;color:var(--muted)">(opcional)</span></div>
+          <span class="chev">▼</span>
+        </div>
+        <div class="costs-body" id="c-costs-body">
+          <div class="g3" style="margin-top:12px">
+            <div class="field"><label>Muda (R$)</label><input type="number" id="c-p-muda" inputmode="decimal" placeholder="ex: 3,50" step="0.01" min="0"/></div>
+            <div class="field"><label>Adubo (R$/kg)</label><input type="number" id="c-p-adubo" inputmode="decimal" placeholder="ex: 1,80" step="0.01" min="0"/></div>
+            <div class="field"><label>Moeda</label><input type="text" id="c-moeda" placeholder="R$" maxlength="4"/></div>
+          </div>
+        </div>
+      </div>
+
+      <button class="calc-btn" onclick="cCalcular()">Calcular Minha Lavoura →</button>
+
+      <!-- RESULTS -->
+      <div style="margin-top:14px">
+
+        <div class="results-panel">
+          <div class="rp-hdr">
+            <h2>Resultado <em>Estimado</em></h2>
+            <div class="rp-sub" id="c-rp-sub">Preencha o formulário acima</div>
+          </div>
+          <div class="rp-body">
+            <div class="empty-st" id="c-empty">
+              <span class="empty-ico">🌱</span>
+              <p>Sua estimativa aparecerá aqui.</p>
+            </div>
+            <div class="res-rows" id="c-rows" style="display:none">
+              <div class="rrow"><span class="rl">Total de Pés</span><div class="rv" id="c-r-pes">—<small>mudas</small></div></div>
+              <div class="rrow"><span class="rl">Pés / 1.000 m²</span><div class="rv" id="c-r-dens">—<small>pés por 1.000 m²</small></div></div>
+              <div class="rrow grn"><span class="rl">Adubo Anual</span><div class="rv" id="c-r-adubo">—<small>kg por ano</small></div></div>
+              <div class="rrow grn"><span class="rl">Adubo / Pé</span><div class="rv" id="c-r-adubo-pe">—<small>kg / pé</small></div></div>
+              <div class="rrow brn"><span class="rl">Espaçamento</span><div class="rv" id="c-r-esp">—<small>linha × corredor (m)</small></div></div>
+              <div class="rrow brn"><span class="rl">Aproveitamento</span><div class="rv" id="c-r-aprov">—<small>% da área útil</small></div></div>
+            </div>
+            <div class="cfg-tag" id="c-cfg" style="display:none">—</div>
+            <div class="cost-sum" id="c-custo" style="display:none">
+              <div class="cs-title">Estimativa de Investimento</div>
+              <div class="cs-row"><span class="csl">Mudas</span><span class="csv" id="c-cm">—</span></div>
+              <div class="cs-row"><span class="csl">Adubo (1º ano)</span><span class="csv" id="c-ca">—</span></div>
+              <div class="cs-row tot"><span class="csl">Total</span><span class="csv" id="c-ct">—</span></div>
+            </div>
+            <div class="agro-note" id="c-nota" style="display:none"></div>
+            <div class="res-actions" id="c-actions" style="display:none">
+              <button class="ract" onclick="cCopiar()">📤 Compartilhar</button>
+              <button class="ract" onclick="cLimpar()">🔄 Limpar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RAIN BLOCK (shows after calc if city set) -->
+        <div class="rain-block" id="c-rain-block" style="display:none">
+          <div class="rain-hdr">
+            <div class="rain-hdr-top">
+              <h3>🌧️ Precipitação — <em>Lavoura</em></h3>
+            </div>
+            <div class="rain-loc-tag" id="c-rain-loc"></div>
+          </div>
+          <div class="rain-body">
+            <div class="rain-loading" id="c-rain-load"><div class="rain-spin"></div>Carregando dados climáticos…</div>
+            <div class="rain-err" id="c-rain-err" style="display:none"></div>
+            <div id="c-rain-content" style="display:none">
+              <div id="c-risk" class="risk-banner" style="margin-bottom:10px">
+                <span id="c-risk-ico" class="risk-ico"></span>
+                <div class="risk-text">
+                  <div id="c-risk-title" class="risk-title"></div>
+                  <div id="c-risk-desc" class="risk-desc"></div>
+                  <div class="risk-badge-row"><span id="c-risk-badge" class="risk-badge"></span></div>
+                </div>
+              </div>
+              <div class="rain-stats" style="margin-bottom:10px">
+                <div class="rstat"><div class="rs-lbl">Média Anual</div><div id="c-rs-an" class="rs-val">—</div><div class="rs-unit">mm/ano</div></div>
+                <div class="rstat gold"><div class="rs-lbl">+ Seco</div><div id="c-rs-sc" class="rs-val">—</div><div id="c-rs-sm" class="rs-unit">—</div></div>
+                <div class="rstat green"><div class="rs-lbl">+ Chuvoso</div><div id="c-rs-ch" class="rs-val">—</div><div id="c-rs-cm" class="rs-unit">—</div></div>
+                <div class="rstat amb"><div class="rs-lbl">Próx. 3M</div><div id="c-rs-pr" class="rs-val">—</div><div class="rs-unit">mm</div></div>
+              </div>
+              <div class="rain-chart-card" style="margin-bottom:10px">
+                <div class="rain-chart-hdr">
+                  <div class="rct">Histórico & <em>Previsão</em></div>
+                  <div class="rain-leg">
+                    <div class="rl-i"><div class="rl-d" style="background:#2d89c8"></div>Hist.</div>
+                    <div class="rl-i"><div class="rl-d" style="background:#2d89c8;opacity:.35"></div>Média</div>
+                    <div class="rl-i"><div class="rl-d" style="background:#6a9e58"></div>Prev.</div>
+                  </div>
+                </div>
+                <div class="chart-wrap"><canvas id="c-chart"></canvas></div>
+              </div>
+              <div class="rain-chart-card">
+                <div class="rain-chart-hdr"><div class="rct">Previsão — <em>6 Meses</em></div></div>
+                <div id="c-fcgrid" class="fc-row"></div>
+              </div>
+              <div class="rain-src">📡 Open-Meteo ERA5 + previsão 16 dias</div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /results wrapper -->
+
+      <!-- Disclaimer + refs -->
+      <div style="margin-top:14px">
+        <div class="disclaimer">
+          <span class="di">⚠️</span>
+          <div class="disc-text">
+            <strong>Aviso Importante</strong>
+            Estimativas orientativas. Consulte sempre um <strong>Engenheiro Agrônomo habilitado</strong> antes de tomar decisões sobre a lavoura.
+          </div>
+        </div>
+        <div class="refs">
+          <div class="ref-hdr" id="ref-hdr" onclick="toggleRef()">
+            <div class="rhl">📚 Referências Técnicas</div>
+            <span class="ref-chev">▼</span>
+          </div>
+          <div class="ref-body" id="ref-body">
+            <div class="ref-item"><div class="ri-org">Embrapa / IAPAR</div><div class="ri-title">Espaçamento e Densidade de Plantio no Café Adensado</div><div class="ri-desc">Base para espaçamento por tipo de colheita e variedade.</div></div>
+            <div class="ref-item"><div class="ri-org">IAC / VI Simpósio Cafés do Brasil</div><div class="ri-title">Produtividade de Cultivares Arábica em Diferentes Espaçamentos</div><div class="ri-desc">Experimentos em São José do Rio Pardo/SP, 2005–2008.</div></div>
+            <div class="ref-item"><div class="ri-org">Fundação Procafé / Matiello et al.</div><div class="ri-title">Manual de Recomendações (2020)</div><div class="ri-desc">Adubação NPK por produtividade esperada (sacas/ha).</div></div>
+            <div class="ref-item"><div class="ri-org">Embrapa Cerrados</div><div class="ri-title">Manejo de Adubação Fosfatada em Cafeeiros</div><div class="ri-desc">Dose anual de manutenção nutricional por hectare.</div></div>
+            <div class="ref-item"><div class="ri-org">IAPAR — Tumoru Sera</div><div class="ri-title">Espaçamento Correto como Fator de Produtividade</div><div class="ri-desc">Ajustes de terreno e colheita aplicados no calculador.</div></div>
+            <div class="ref-item"><div class="ri-org">Open-Meteo API</div><div class="ri-title">ERA5 Climate Reanalysis + Global Forecast Model</div><div class="ri-desc">Histórico de precipitação (5 anos) e previsão meteorológica.</div></div>
+          </div>
+        </div>
+        <div class="foot-note"><a href="https://kafzin.com" target="_blank">kafzin.com</a> — Conectando produtores brasileiros ao mercado europeu · v2.0</div>
+      </div>
+
+    </div><!-- /inner -->
+  </div><!-- /panel-calc -->
+
+
+  <!-- ══════════════════════════════
+       PANEL 2: MONITOR DE CHUVAS
+  ══════════════════════════════ -->
+  <div class="panel" id="panel-rain">
+
+    <div class="panel-hdr" data-emoji="🌧️">
+      <div class="ph-kicker">Kafzin · Dados Climáticos</div>
+      <h1>Monitor de <em>Precipitação</em></h1>
+      <p>Histórico, previsão e risco para a lavoura.</p>
+    </div>
+
+    <div class="inner">
+
+      <div class="search-wrap">
+        <div class="search-row">
+          <input id="r-inp" class="srch-inp" type="text" placeholder="Digite uma cidade brasileira…"
+            autocomplete="off" oninput="rInp()" onkeydown="if(event.key==='Enter'){rCloseSugs();rBuscar()}"/>
+          <button id="r-btn" class="srch-btn" onclick="rBuscar()">🔍</button>
+        </div>
+        <div id="r-sugs" class="srch-sugs"></div>
+      </div>
+
+      <div id="r-err" class="rp-err"></div>
+      <div id="r-load" class="rp-load"><div class="rain-spin" style="margin-bottom:8px"></div>Carregando dados…</div>
+
+      <div id="r-locb" class="rp-locb">
+        <span>📍</span>
+        <span id="r-locname" class="rp-loc-name"></span>
+        <span id="r-loccoords" class="rp-loc-coords"></span>
+      </div>
+
+      <div id="r-content" class="rp-content">
+
+        <div id="r-risk" class="risk-banner" style="margin-bottom:12px">
+          <span id="r-risk-ico" class="risk-ico"></span>
+          <div class="risk-text">
+            <div id="r-risk-title" class="risk-title"></div>
+            <div id="r-risk-desc" class="risk-desc"></div>
+            <div class="risk-badge-row"><span id="r-risk-badge" class="risk-badge"></span></div>
+          </div>
+        </div>
+
+        <div class="rain-stats" style="margin-bottom:12px">
+          <div class="rstat"><div class="rs-lbl">Média Anual</div><div id="r-rs-an" class="rs-val">—</div><div class="rs-unit">mm/ano</div></div>
+          <div class="rstat gold"><div class="rs-lbl">+ Seco</div><div id="r-rs-sc" class="rs-val">—</div><div id="r-rs-sm" class="rs-unit">—</div></div>
+          <div class="rstat green"><div class="rs-lbl">+ Chuvoso</div><div id="r-rs-ch" class="rs-val">—</div><div id="r-rs-cm" class="rs-unit">—</div></div>
+          <div class="rstat amb"><div class="rs-lbl">Próx. 3M</div><div id="r-rs-pr" class="rs-val">—</div><div class="rs-unit">mm</div></div>
+        </div>
+
+        <div class="rain-chart-card" style="margin-bottom:12px">
+          <div class="rain-chart-hdr">
+            <div class="rct">Histórico & <em>Previsão</em></div>
+            <div class="rain-leg">
+              <div class="rl-i"><div class="rl-d" style="background:#2d89c8"></div>Histórico</div>
+              <div class="rl-i"><div class="rl-d" style="background:#2d89c8;opacity:.35"></div>Média</div>
+              <div class="rl-i"><div class="rl-d" style="background:#6a9e58"></div>Previsão</div>
+            </div>
+          </div>
+          <div class="chart-wrap"><canvas id="r-chart"></canvas></div>
+        </div>
+
+        <div class="rain-chart-card" style="margin-bottom:12px">
+          <div class="rain-chart-hdr"><div class="rct">Previsão — <em>Próximos 6 Meses</em></div></div>
+          <div id="r-fcgrid" class="fc-row"></div>
+        </div>
+
+        <div class="rain-src" style="margin-bottom:12px">📡 Open-Meteo ERA5 reanalysis + previsão 16 dias + médias sazonais</div>
+
+      </div><!-- /r-content -->
+
+      <div class="foot-note"><a href="https://kafzin.com" target="_blank">kafzin.com</a> · v2.0</div>
+
+    </div><!-- /inner -->
+  </div><!-- /panel-rain -->
+
+</div><!-- /scroll-area -->
+
+<!-- BOTTOM SAFE AREA -->
+<div class="app-safe-bot" style="background:var(--brown)"></div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <button class="tab-btn active" id="tab-calc" onclick="switchTab('calc')">
+    <span class="tab-ico">🌱</span>
+    Calculadora
+  </button>
+  <button class="tab-btn" id="tab-rain" onclick="switchTab('rain')">
+    <span class="tab-ico">🌧️</span>
+    Chuvas
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════ -->
+<script>
+(function(){
+
+/* ── DATA ── */
+const VARS={
+  bourbon_amarelo:{linha:2.5,planta:2.5,adubo:.80,nome:'Bourbon Amarelo'},
+  catuai:         {linha:2.0,planta:2.5,adubo:.75,nome:'Catuaí'},
+  mundo_novo:     {linha:3.0,planta:3.0,adubo:1.0,nome:'Mundo Novo'},
+  acaia:          {linha:3.5,planta:3.5,adubo:1.1,nome:'Acaiá'},
+  icatu:          {linha:3.0,planta:2.5,adubo:.90,nome:'Icatu'},
+  topazio:        {linha:2.5,planta:3.0,adubo:.85,nome:'Topázio'},
+};
+const MO =['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const MOF=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+/* ── STATE ── */
+let espMode='sugerido',costsOpen=false,refOpen=false;
+let cityLoc=null,cityTmr=null,citySugs=[];
+let cChart=null,rChart=null;
+let rSugs=[],rTmr=null,rSel=null;
+let deferredPrompt=null;
+
+/* ── HELPERS ── */
+const $=id=>document.getElementById(id);
+const fN=(n,d=0)=>n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fR=(n,m='R$')=>m+' '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}
+function scrollTop(){$('scroll-area').scrollTo({top:0,behavior:'smooth'})}
+
+/* ── PWA INSTALL ── */
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredPrompt=e;
+  $('install-banner').classList.add('show');
+});
+window.installApp=async function(){
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();
+  const{outcome}=await deferredPrompt.userChoice;
+  deferredPrompt=null;
+  $('install-banner').classList.remove('show');
+  if(outcome==='accepted')toast('✅ App instalado!');
+};
+window.dismissInstall=function(){$('install-banner').classList.remove('show');};
+
+/* ── TAB NAVIGATION ── */
+window.switchTab=function(tab){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  $('panel-'+tab).classList.add('active');
+  $('tab-'+tab).classList.add('active');
+  scrollTop();
+};
+
+/* ══════════════════════
+   CALCULADORA
+══════════════════════ */
+window.cSeg=function(btn,group){
+  document.querySelectorAll('#'+group+' .seg-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+};
+
+window.cVar=function(btn){
+  document.querySelectorAll('#c-vars .var-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  cUpdatePreview();
+};
+
+function cGetSeg(g){return document.querySelector('#'+g+' .active')?.dataset.val}
+
+window.cSpacingMode=function(btn){
+  document.querySelectorAll('.smode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  espMode=btn.dataset.val;
+  const isC=espMode==='personalizado';
+  $('c-sug-preview').style.display=isC?'none':'block';
+  $('c-custom').classList.toggle('visible',isC);
+  if(isC)cFillSug();
+};
+
+function cUpdatePreview(){
+  const k=document.querySelector('#c-vars .active')?.dataset.val||'bourbon_amarelo';
+  const v=VARS[k];
+  $('c-sug-l').textContent=fN(v.linha,1)+' m';
+  $('c-sug-p').textContent=fN(v.planta,1)+' m';
+  $('c-var-name').textContent=v.nome;
+  if(espMode==='personalizado'){
+    const el=$('c-esp-l'),ep=$('c-esp-p');
+    if(!el.value)el.value=v.linha;
+    if(!ep.value)ep.value=v.planta;
+  }
+}
+
+window.cFillSug=function(){
+  const k=document.querySelector('#c-vars .active')?.dataset.val||'bourbon_amarelo';
+  const v=VARS[k];
+  $('c-esp-l').value=v.linha;$('c-esp-p').value=v.planta;
+  $('c-esp-warn').classList.remove('visible');
+};
+
+window.cValEsp=function(){
+  const col=cGetSeg('c-colheita');
+  const l=parseFloat($('c-esp-l').value)||0,p=parseFloat($('c-esp-p').value)||0;
+  const w=$('c-esp-warn');const msgs=[];
+  if(col==='mecanica'&&l>0&&l<3.5)msgs.push('⚠️ Mecânica: mín. 3,5m entre linhas.');
+  if(l>0&&l<1.0)msgs.push('⚠️ Linhas muito próximas.');
+  if(p>0&&p<0.4)msgs.push('⚠️ Plantas muito próximas.');
+  if(msgs.length){w.textContent=msgs.join(' ');w.classList.add('visible');}
+  else w.classList.remove('visible');
+};
+
+window.cToggleCosts=function(){
+  costsOpen=!costsOpen;
+  $('c-costs-body').classList.toggle('visible',costsOpen);
+  $('c-costs-bar').classList.toggle('open',costsOpen);
+};
+
+window.toggleRef=function(){
+  refOpen=!refOpen;
+  $('ref-body').classList.toggle('visible',refOpen);
+  $('ref-hdr').classList.toggle('open',refOpen);
+};
+
+/* city */
+async function geoSearch(q){
+  const r=await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=10&language=pt&format=json');
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  const all=d.results||[];
+  const br=all.filter(x=>x.country_code==='BR');
+  return br.length?br:all;
+}
+
+window.cCityInp=function(){
+  clearTimeout(cityTmr);
+  const v=$('c-city').value.trim();
+  if(v.length<2){cCloseSugs();return;}
+  cityTmr=setTimeout(async()=>{
+    try{citySugs=await geoSearch(v);cShowSugs(citySugs);}catch(e){}
+  },320);
+};
+
+function cShowSugs(items){
+  const el=$('c-city-sugs');
+  if(!items.length){cCloseSugs();return;}
+  el.innerHTML=items.slice(0,5).map((r,i)=>{
+    const d=[r.admin2,r.admin1,r.country].filter(Boolean).join(', ');
+    return `<div class="city-sug" onclick="cPickSug(${i})"><span class="csn">${r.name}</span><span class="csd">${d}</span></div>`;
+  }).join('');
+  el.classList.add('open');
+}
+
+window.cPickSug=function(i){
+  cityLoc=citySugs[i];
+  $('c-city').value=[cityLoc.name,cityLoc.admin1].filter(Boolean).join(', ');
+  cCloseSugs();cShowCityBadge();
+};
+
+window.cCitySearch=async function(){
+  const v=$('c-city').value.trim();if(!v)return;
+  cCloseSugs();
+  try{
+    let res=await geoSearch(v+' Brasil');
+    if(!res.length)res=await geoSearch(v);
+    if(!res.length){toast('⚠️ Cidade não encontrada');return;}
+    if(res.length>1){citySugs=res;cShowSugs(res);}
+    else{cityLoc=res[0];$('c-city').value=[cityLoc.name,cityLoc.admin1].filter(Boolean).join(', ');cShowCityBadge();}
+  }catch(e){toast('Erro: '+e.message);}
+};
+
+function cCloseSugs(){$('c-city-sugs').classList.remove('open');}
+
+function cShowCityBadge(){
+  $('c-city-label').textContent=[cityLoc.name,cityLoc.admin1].filter(Boolean).join(', ');
+  $('c-city-badge').classList.add('show');
+  $('c-rain-hint').style.display='block';
+}
+
+window.cClearCity=function(){
+  cityLoc=null;$('c-city').value='';
+  $('c-city-badge').classList.remove('show');
+  $('c-rain-hint').style.display='none';
+  $('c-rain-block').style.display='none';
+};
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.city-wrap'))cCloseSugs();
+  if(!e.target.closest('.search-wrap'))rCloseSugs();
+});
+
+/* calculate */
+window.cCalcular=async function(){
+  const area=parseFloat($('c-area').value);
+  if(!area||area<=0){toast('⚠️ Informe uma área válida em m²');return;}
+
+  const terreno=cGetSeg('c-terreno'),colheita=cGetSeg('c-colheita');
+  const varKey=document.querySelector('#c-vars .active')?.dataset.val||'bourbon_amarelo';
+  const pMuda=parseFloat($('c-p-muda').value)||0;
+  const pAdubo=parseFloat($('c-p-adubo').value)||0;
+  const moeda=$('c-moeda').value.trim()||'R$';
+
+  let v={...VARS[varKey]},customEsp=false;
+  if(espMode==='personalizado'){
+    const el=parseFloat($('c-esp-l').value),ep=parseFloat($('c-esp-p').value);
+    if(!el||el<=0||!ep||ep<=0){toast('⚠️ Informe o espaçamento');return;}
+    v.linha=el;v.planta=ep;customEsp=true;
+  }else{
+    if(terreno==='morro'){v.linha*=1.10;v.planta*=1.05;v.adubo*=1.15;}
+    if(colheita==='mecanica'){v.linha=Math.max(v.linha,3.5);v.adubo*=1.08;}
+  }
+
+  const cell=v.linha*v.planta;
+  const pes=Math.floor(area/cell);
+  const dens=Math.round(1000/cell);
+  const aduPe=+(v.adubo*3).toFixed(2);
+  const aduTot=Math.round(pes*v.adubo*3);
+  const aprov=Math.round((pes*cell/area)*100);
+
+  $('c-r-pes').innerHTML=fN(pes)+'<small>mudas</small>';
+  $('c-r-dens').innerHTML=fN(dens)+'<small>pés / 1.000 m²</small>';
+  $('c-r-adubo').innerHTML=fN(aduTot)+'<small>kg por ano</small>';
+  $('c-r-adubo-pe').innerHTML=fN(aduPe,1)+'<small>kg / pé</small>';
+  $('c-r-esp').innerHTML=fN(v.linha,1)+' × '+fN(v.planta,1)+'<small>linha × corredor (m)</small>';
+  $('c-r-aprov').innerHTML=aprov+'<small>% área útil</small>';
+
+  const tL=terreno==='plano'?'Plano':'Morro';
+  const cL=colheita==='manual'?'Manual':'Mecânica';
+  const eL=customEsp?'Espaç. Personalizado':'Espaç. Sugerido';
+  $('c-rp-sub').textContent=VARS[varKey].nome+' · '+fN(area)+' m²';
+  $('c-cfg').textContent=tL+' · '+cL+' · '+eL;
+
+  if(pMuda>0||pAdubo>0){
+    const cM=pes*pMuda,cA=aduTot*pAdubo;
+    $('c-cm').textContent=fR(cM,moeda);
+    $('c-ca').textContent=fR(cA,moeda);
+    $('c-ct').textContent=fR(cM+cA,moeda);
+    $('c-custo').style.display='block';
+  }else{$('c-custo').style.display='none';}
+
+  let nota=customEsp
+    ?`Espaçamento personalizado: ${fN(v.linha,1)}m × ${fN(v.planta,1)}m. Ajustes automáticos desativados. `
+    :(colheita==='manual'?'Colheita manual: espaçamento mais fechado. ':'Colheita mecânica: linhas ≥3,5m. ')+
+     (terreno==='morro'?'Encosta: +10% espaç. +15% adubo. ':'');
+  nota+='Adubo em 3 adubações/ano. Consulte análise de solo.';
+  $('c-nota').textContent=nota;
+
+  $('c-empty').style.display='none';
+  $('c-rows').style.display='flex';
+  $('c-cfg').style.display='block';
+  $('c-nota').style.display='block';
+  $('c-actions').style.display='grid';
+
+  toast('✅ Cálculo realizado!');
+
+  if(cityLoc){
+    $('c-rain-block').style.display='block';
+    $('c-rain-loc').textContent=[cityLoc.name,cityLoc.admin1].filter(Boolean).join(', ');
+    await loadRain(cityLoc,'c');
+    setTimeout(()=>$('c-rain-block').scrollIntoView({behavior:'smooth',block:'nearest'}),300);
+  }
+};
+
+window.cCopiar=function(){
+  const txt='☕ Kafzin — Calculadora de Lavoura\n\n'+
+    $('c-rp-sub').textContent+'\n'+$('c-cfg').textContent+
+    '\n\n🌱 Pés: '+$('c-r-pes').innerText.replace('\n',' ')+
+    '\n🧪 Adubo: '+$('c-r-adubo').innerText.replace('\n',' ')+
+    (cityLoc?'\n📍 Cidade: '+[cityLoc.name,cityLoc.admin1].filter(Boolean).join(', '):'')+
+    '\n\nkafzin.com';
+  if(navigator.share){navigator.share({title:'Kafzin · Lavoura',text:txt}).catch(()=>{});}
+  else if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>toast('✅ Copiado!'));}
+};
+
+window.cLimpar=function(){
+  $('c-empty').style.display='block';
+  $('c-rows').style.display='none';
+  $('c-cfg').style.display='none';
+  $('c-custo').style.display='none';
+  $('c-nota').style.display='none';
+  $('c-actions').style.display='none';
+  $('c-rain-block').style.display='none';
+  $('c-rp-sub').textContent='Preencha o formulário acima';
+  scrollTop();
+};
+
+/* ══════════════════════
+   RAIN LOGIC (shared)
+══════════════════════ */
+async function loadRain(loc,prefix){
+  const P=s=>$(prefix+'-'+s);
+  P('rain-load').style.display='block';
+  P('rain-err').style.display='none';
+  if(prefix==='c')$('c-rain-content').style.display='none';
+  else $('r-content').classList.remove('show');
+
+  try{
+    const lat=loc.latitude.toFixed(4),lon=loc.longitude.toFixed(4);
+    const now=new Date();
+    const archEnd=new Date(now.getFullYear(),now.getMonth(),0);
+    const archStart=new Date(archEnd.getFullYear()-5,archEnd.getMonth(),1);
+    const fmt=d=>d.toISOString().slice(0,10);
+
+    const aUrl=`https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${fmt(archStart)}&end_date=${fmt(archEnd)}&daily=precipitation_sum&timezone=America%2FSao_Paulo`;
+    const fUrl=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_sum&timezone=America%2FSao_Paulo&forecast_days=16`;
+
+    const[aRes,fRes]=await Promise.all([fetch(aUrl),fetch(fUrl)]);
+    if(!aRes.ok){const t=await aRes.text();throw new Error('Archive '+aRes.status+': '+t.slice(0,80));}
+    if(!fRes.ok){const t=await fRes.text();throw new Error('Forecast '+fRes.status+': '+t.slice(0,80));}
+    const[aData,fData]=await Promise.all([aRes.json(),fRes.json()]);
+    if(aData.error)throw new Error(aData.reason||'Archive error');
+    if(fData.error)throw new Error(fData.reason||'Forecast error');
+
+    renderRain(aData,fData,now,prefix);
+    P('rain-load').style.display='none';
+    if(prefix==='c')$('c-rain-content').style.display='block';
+    else{$('r-content').classList.add('show');}
+  }catch(e){
+    console.error('[rain]',e.message);
+    P('rain-load').style.display='none';
+    P('rain-err').textContent='❌ '+e.message;
+    P('rain-err').style.display='block';
+  }
+}
+
+function renderRain(aData,fData,now,prefix){
+  const aDays=aData.daily?.time||[],aVals=aData.daily?.precipitation_sum||[];
+  const archMon={};
+  aDays.forEach((t,i)=>{const k=t.slice(0,7);archMon[k]=(archMon[k]||0)+(aVals[i]||0);});
+
+  const last12=[];
+  for(let m=11;m>=0;m--){
+    const d=new Date(now.getFullYear(),now.getMonth()-1-m,1);
+    const k=d.toISOString().slice(0,7);
+    last12.push({k,month:d.getMonth(),year:d.getFullYear(),val:Math.round(archMon[k]||0)});
+  }
+
+  const avg=Array(12).fill(0),cnt=Array(12).fill(0);
+  Object.entries(archMon).forEach(([k,v])=>{
+    const yr=+k.slice(0,4),mo=+k.slice(5,7)-1,ny=now.getFullYear();
+    if(ny-yr>=1&&ny-yr<=5){avg[mo]+=v;cnt[mo]++;}
+  });
+  avg.forEach((_,i)=>{avg[i]=cnt[i]?Math.round(avg[i]/cnt[i]):0;});
+
+  const fDays=fData.daily?.time||[],fVals=fData.daily?.precipitation_sum||[];
+  const fMon={};
+  fDays.forEach((t,i)=>{const k=t.slice(0,7);fMon[k]=(fMon[k]||0)+(fVals[i]||0);});
+
+  const fc6=[];
+  for(let m=0;m<6;m++){
+    const d=new Date(now.getFullYear(),now.getMonth()+m,1);
+    const k=d.toISOString().slice(0,7),mo=d.getMonth();
+    let val;
+    if(m===0&&fMon[k]){
+      const dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+      const dsf=fDays.filter(t=>t.startsWith(k)).length;
+      val=Math.round((fMon[k]/Math.max(dsf,1))*dim);
+    }else{val=avg[mo];}
+    fc6.push({k,month:mo,year:d.getFullYear(),val:Math.max(val,0)});
+  }
+
+  const fcA=fc6.reduce((a,x)=>a+x.val,0)/6;
+  const hiA=avg.reduce((a,b)=>a+b,0)/12;
+  const rat=fcA/(hiA||1);
+  let rc,ri,rt,rd,rb;
+  if(rat<0.5)      {rc='muito-seco';  ri='🔥';rb='Muito Seco';   rt='Risco de <em>Seca Severa</em>';          rd='Precipitação muito abaixo da média. Planeje irrigação com antecedência.';}
+  else if(rat<0.8) {rc='seco';        ri='☀️'; rb='Período Seco'; rt='Período <em>Mais Seco</em> que o Normal'; rd='Abaixo da média. Monitore o estresse hídrico da lavoura.';}
+  else if(rat<1.25){rc='normal';      ri='🌤️';rb='Normal';        rt='Precipitação <em>dentro do Padrão</em>';  rd='Previsão alinhada com a média histórica. Condições favoráveis.';}
+  else if(rat<1.6) {rc='chuvoso';     ri='🌧️';rb='Chuvoso';       rt='Período <em>Acima da Média</em>';         rd='Acima do normal. Atenção a fungos e drenagem do solo.';}
+  else             {rc='muito-chuvoso';ri='⛈️';rb='Muito Chuvoso';rt='Risco de <em>Excesso de Chuva</em>';      rd='Muito acima da média. Risco de erosão e doenças fúngicas.';}
+
+  const maxM=avg.indexOf(Math.max(...avg)),minM=avg.indexOf(Math.min(...avg));
+  const p=s=>$(prefix+(prefix==='c'?'-risk-':'-risk-')+s);
+
+  // risk
+  $(prefix+'-risk').className='risk-banner '+rc;
+  $(prefix+'-risk-ico').textContent=ri;
+  $(prefix+'-risk-title').innerHTML=rt;
+  $(prefix+'-risk-desc').textContent=rd;
+  $(prefix+'-risk-badge').textContent=rb;
+
+  // stats
+  const rs=s=>$(prefix===`c`?`c-rs-${s}`:`r-rs-${s}`);
+  rs('an').textContent=Math.round(avg.reduce((a,b)=>a+b,0));
+  rs('sc').textContent=avg[minM]; rs('sm').textContent=MO[minM];
+  rs('ch').textContent=avg[maxM]; rs('cm').textContent=MO[maxM];
+  rs('pr').textContent=Math.round(fc6.slice(0,3).reduce((a,x)=>a+x.val,0));
+
+  // chart
+  const chartId=prefix===`c`?`c-chart`:`r-chart`;
+  const labels=[...last12.map(x=>MO[x.month]+' '+String(x.year).slice(2)),...fc6.map(x=>MO[x.month]+' '+String(x.year).slice(2))];
+  const hDs=[...last12.map(x=>x.val),...Array(6).fill(null)];
+  const pDs=[...Array(12).fill(null),...fc6.map(x=>x.val)];
+  const aDs=[...last12.map(x=>avg[x.month]),...fc6.map(x=>avg[x.month])];
+
+  if(prefix==='c'&&cChart){cChart.destroy();cChart=null;}
+  if(prefix==='r'&&rChart){rChart.destroy();rChart=null;}
+
+  const ch=new Chart($(chartId).getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Histórico',data:hDs,backgroundColor:'rgba(45,137,200,.72)',borderColor:'#2d89c8',borderWidth:1,borderRadius:2,order:2},
+      {label:'Previsão', data:pDs,backgroundColor:'rgba(106,158,88,.72)', borderColor:'#6a9e58',borderWidth:1,borderRadius:2,order:2},
+      {label:'Média',    data:aDs,type:'line',borderColor:'rgba(45,137,200,.4)',borderWidth:1.5,borderDash:[4,3],pointRadius:1.5,fill:false,tension:.4,order:1}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+(c.parsed.y!==null?Math.round(c.parsed.y)+' mm':'—')}}},
+      scales:{
+        x:{grid:{color:'rgba(0,0,0,.05)'},ticks:{font:{size:8},color:'#87756a',maxRotation:45}},
+        y:{grid:{color:'rgba(0,0,0,.06)'},beginAtZero:true,ticks:{font:{size:8},color:'#87756a',callback:v=>v+' mm'}}
+      }
+    }
+  });
+  if(prefix==='c')cChart=ch; else rChart=ch;
+
+  // forecast
+  const fcGridId=prefix==='c'?'c-fcgrid':'r-fcgrid';
+  $(fcGridId).innerHTML=fc6.map(f=>{
+    const a=avg[f.month],pct=a?Math.round((f.val/a-1)*100):0;
+    const ico=f.val>a*1.3?'⛈️':f.val>a*.9?'🌧️':f.val>a*.5?'🌤️':'☀️';
+    const dc=pct>20?'#3b6332':pct<-20?'#a83228':'#87756a';
+    return `<div class="fc-mini"><div class="fm-mo">${MOF[f.month]}</div><div class="fm-val">${f.val}</div><div class="fm-unit">mm</div><div class="fm-ico">${ico}</div><div class="fm-diff" style="color:${dc}">${pct>=0?'+':''}${pct}%</div></div>`;
+  }).join('');
+}
+
+/* ══════════════════════
+   RAIN TAB STANDALONE
+══════════════════════ */
+window.rInp=function(){
+  clearTimeout(rTmr);
+  const v=$('r-inp').value.trim();
+  if(v.length<2){rCloseSugs();return;}
+  rTmr=setTimeout(async()=>{
+    try{rSugs=await geoSearch(v);rShowSugs(rSugs);}catch(e){}
+  },320);
+};
+
+function rShowSugs(items){
+  const el=$('r-sugs');
+  if(!items.length){rCloseSugs();return;}
+  el.innerHTML=items.slice(0,5).map((r,i)=>{
+    const d=[r.admin2,r.admin1,r.country].filter(Boolean).join(', ');
+    return `<div class="ss-item" onclick="rPickSug(${i})"><span class="ss-name">${r.name}</span><span class="ss-detail">${d}</span></div>`;
+  }).join('');
+  el.classList.add('open');
+}
+
+window.rPickSug=function(i){
+  rSel=rSugs[i];
+  $('r-inp').value=[rSel.name,rSel.admin1].filter(Boolean).join(', ');
+  rCloseSugs();rLoadStandalone(rSel);
+};
+
+function rCloseSugs(){$('r-sugs').classList.remove('open');}
+
+window.rBuscar=async function(){
+  const v=$('r-inp').value.trim();if(!v)return;
+  rCloseSugs();rSetErr('');rShowLoad(true);
+  try{
+    let res=await geoSearch(v+' Brasil');
+    if(!res.length)res=await geoSearch(v);
+    rShowLoad(false);
+    if(!res.length){rSetErr('Cidade não encontrada. Tente incluir o estado: ex. "Americana, São Paulo"');return;}
+    if(res.length>1){rSugs=res;rShowSugs(res);}
+    else{rSel=res[0];rLoadStandalone(rSel);}
+  }catch(e){rShowLoad(false);rSetErr('Erro de conexão: '+e.message);}
+};
+
+async function rLoadStandalone(loc){
+  rShowLoad(true);rSetErr('');$('r-content').classList.remove('show');
+  const adm=[loc.admin1].filter(Boolean).join(', ');
+  $('r-locname').textContent=loc.name+(adm?', '+adm:'');
+  $('r-loccoords').textContent=`${loc.latitude.toFixed(3)}°, ${loc.longitude.toFixed(3)}°`;
+  $('r-locb').classList.add('show');
+  await loadRain(loc,'r');
+  rShowLoad(false);
+}
+
+function rSetErr(m){const e=$('r-err');e.textContent=m;e.classList.toggle('show',!!m);}
+function rShowLoad(v){$('r-load').classList.toggle('show',v);$('r-btn').disabled=v;}
+
+/* ── INIT ── */
+cUpdatePreview();
+
+})();
+</script>
+
+</body>
+</html>
