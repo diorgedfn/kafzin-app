@@ -1,0 +1,437 @@
+package com.kafzin.app
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { KafzinTheme { App() } }
+    }
+}
+
+// ---------- Tema ----------
+
+@Composable
+fun KafzinTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = lightColorScheme(
+            primary = Color(0xFF2E5E3E),
+            secondary = Color(0xFF6F4E37),
+            primaryContainer = Color(0xFFD7EBD9),
+            onPrimaryContainer = Color(0xFF0E2A18),
+        ),
+        content = content,
+    )
+}
+
+// ---------- Utilidades ----------
+
+fun abrir(ctx: Context, uri: String) {
+    try {
+        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
+    } catch (e: Exception) {
+        Toast.makeText(ctx, "Não foi possível abrir", Toast.LENGTH_SHORT).show()
+    }
+}
+
+fun compartilhar(ctx: Context, texto: String) {
+    val i = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, texto)
+    }
+    ctx.startActivity(Intent.createChooser(i, "Compartilhar estimativa"))
+}
+
+fun String.toNum(): Double? = trim().replace(',', '.').toDoubleOrNull()
+
+@Composable
+fun Tela(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        content = content,
+    )
+}
+
+@Composable
+fun Titulo(t: String) {
+    Text(t, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+}
+
+@Composable
+fun Linha(a: String, b: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(a)
+        Text(b, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun Campo(label: String, valor: String, onChange: (String) -> Unit, numerico: Boolean = true) {
+    OutlinedTextField(
+        value = valor,
+        onValueChange = onChange,
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = if (numerico) KeyboardType.Decimal else KeyboardType.Text),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+// ---------- App ----------
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun App() {
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var cidade by rememberSaveable { mutableStateOf("") }
+    val itens = listOf(
+        "Início" to Icons.Default.Home,
+        "Calculadora" to Icons.Default.Build,
+        "Clima" to Icons.Default.DateRange,
+        "Agrônomos" to Icons.Default.Person,
+        "Lojas" to Icons.Default.ShoppingCart,
+    )
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Kafzin • Café", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = Color.White,
+                ),
+            )
+        },
+        bottomBar = {
+            NavigationBar {
+                itens.forEachIndexed { i, (nome, icone) ->
+                    NavigationBarItem(
+                        selected = tab == i,
+                        onClick = { tab = i },
+                        icon = { Icon(icone, nome) },
+                        label = { Text(nome, maxLines = 1, fontSize = 10.sp) },
+                    )
+                }
+            }
+        },
+    ) { pad ->
+        Box(Modifier.padding(pad).fillMaxSize()) {
+            when (tab) {
+                0 -> InicioTela(onIr = { tab = it })
+                1 -> CalculadoraTela()
+                2 -> ClimaTela(cidade) { cidade = it }
+                3 -> AgronomosTela()
+                else -> LojasTela(cidade) { cidade = it }
+            }
+        }
+    }
+}
+
+// ---------- Início ----------
+
+private val LINKS = listOf(
+    "Embrapa Café" to "https://www.embrapa.br/cafe",
+    "Fundação Procafé" to "https://fundacaoprocafe.com.br",
+    "Indicador de preço – CEPEA/ESALQ" to "https://www.cepea.esalq.usp.br",
+    "Safra de café – Conab" to "https://www.conab.gov.br",
+)
+
+@Composable
+fun Atalho(titulo: String, sub: String, icone: ImageVector, onClick: () -> Unit) {
+    Card(Modifier.fillMaxWidth().clickable { onClick() }) {
+        Row(
+            Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(icone, null, tint = MaterialTheme.colorScheme.primary)
+            Column {
+                Text(titulo, fontWeight = FontWeight.Bold)
+                Text(sub, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+fun InicioTela(onIr: (Int) -> Unit) {
+    val ctx = LocalContext.current
+    Tela {
+        Titulo("Olá, produtor! ☕")
+        Text("Simule sua lavoura, acompanhe a chuva, fale com agrônomos e encontre insumos, tudo em um só lugar.")
+        Atalho("Calculadora de lavoura", "Pés, adubo e investimento", Icons.Default.Build) { onIr(1) }
+        Atalho("Chuva da minha lavoura", "Histórico de 12 meses e previsão", Icons.Default.DateRange) { onIr(2) }
+        Atalho("Fale com um agrônomo", "Orientação técnica por WhatsApp", Icons.Default.Person) { onIr(3) }
+        Atalho("Lojas de insumos", "Agropecuárias perto de você", Icons.Default.ShoppingCart) { onIr(4) }
+        Titulo("Biblioteca técnica")
+        LINKS.forEach { (t, u) ->
+            OutlinedButton(onClick = { abrir(ctx, u) }, modifier = Modifier.fillMaxWidth()) { Text(t) }
+        }
+    }
+}
+
+// ---------- Calculadora ----------
+
+@Composable
+fun CalculadoraTela() {
+    val ctx = LocalContext.current
+    var area by rememberSaveable { mutableStateOf("10000") }
+    var morro by rememberSaveable { mutableStateOf(false) }
+    var mecanica by rememberSaveable { mutableStateOf(false) }
+    var varIdx by rememberSaveable { mutableIntStateOf(0) }
+    var personalizado by rememberSaveable { mutableStateOf(false) }
+    var linhaTxt by rememberSaveable { mutableStateOf("") }
+    var plantaTxt by rememberSaveable { mutableStateOf("") }
+    var muda by rememberSaveable { mutableStateOf("") }
+    var adubo by rememberSaveable { mutableStateOf("") }
+    var resultado by remember { mutableStateOf<Resultado?>(null) }
+    var erro by remember { mutableStateOf<String?>(null) }
+    val v = VARIEDADES[varIdx]
+
+    Tela {
+        Titulo("Calculadora de lavoura")
+        Campo("Área disponível (m²) – 1 ha = 10.000 m²", area, { area = it })
+
+        Text("Terreno", fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = !morro, onClick = { morro = false }, label = { Text("🌾 Plano") })
+            FilterChip(selected = morro, onClick = { morro = true }, label = { Text("⛰️ Morro") })
+        }
+
+        Text("Colheita", fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = !mecanica, onClick = { mecanica = false }, label = { Text("🤲 Manual") })
+            FilterChip(selected = mecanica, onClick = { mecanica = true }, label = { Text("🚜 Mecânica") })
+        }
+
+        Text("Variedade", fontWeight = FontWeight.Bold)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            VARIEDADES.forEachIndexed { i, x ->
+                FilterChip(selected = varIdx == i, onClick = { varIdx = i }, label = { Text(x.nome) })
+            }
+        }
+        Text(
+            "Sugerido: ${fmt(v.linha, 1)} m × ${fmt(v.planta, 1)} m",
+            style = MaterialTheme.typography.bodySmall,
+        )
+
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Switch(checked = personalizado, onCheckedChange = { personalizado = it })
+            Text("Espaçamento personalizado")
+        }
+        if (personalizado) {
+            Campo("Entre linhas (m)", linhaTxt, { linhaTxt = it })
+            Campo("Entre plantas (m)", plantaTxt, { plantaTxt = it })
+        }
+
+        Text("Custos (opcional)", fontWeight = FontWeight.Bold)
+        Campo("Preço por muda (R$)", muda, { muda = it })
+        Campo("Preço do adubo (R$/kg)", adubo, { adubo = it })
+
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                val r = calcular(
+                    areaM2 = area.toNum() ?: 0.0,
+                    morro = morro,
+                    mecanica = mecanica,
+                    v = v,
+                    linhaCustom = if (personalizado) linhaTxt.toNum() else null,
+                    plantaCustom = if (personalizado) plantaTxt.toNum() else null,
+                    precoMuda = muda.toNum(),
+                    precoAdubo = adubo.toNum(),
+                )
+                erro = if (r == null) "Confira a área e o espaçamento informados." else null
+                resultado = r
+            },
+        ) { Text("Calcular minha lavoura") }
+
+        erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+        resultado?.let { r ->
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Resultado estimado", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Linha("Total de pés", "${fmt(r.pes.toDouble())} mudas")
+                    Linha("Pés por 1.000 m²", fmt(r.pesPor1000m2))
+                    Linha("Espaçamento", "${fmt(r.linha, 2)} × ${fmt(r.planta, 2)} m")
+                    Linha("Aproveitamento da área", "${fmt(r.aproveitamento)}%")
+                    Linha("Adubo anual", "${fmt(r.aduboKgAno)} kg")
+                    Linha("Adubo por pé", "${fmt(r.aduboKgPorPe, 2)} kg")
+                    r.custoMudas?.let { Linha("Mudas", brl(it)) }
+                    r.custoAdubo?.let { Linha("Adubo (1º ano)", brl(it)) }
+                    if (r.custoMudas != null || r.custoAdubo != null) {
+                        HorizontalDivider()
+                        Linha("Total", brl((r.custoMudas ?: 0.0) + (r.custoAdubo ?: 0.0)))
+                    }
+                }
+            }
+            OutlinedButton(
+                onClick = { compartilhar(ctx, resumo(r, v.nome)) },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Compartilhar") }
+        }
+
+        Text(
+            "⚠️ Estimativas orientativas. Espaçamento, densidade e adubação variam conforme análise de solo, " +
+                "altitude e manejo. Consulte sempre um Engenheiro Agrônomo habilitado.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
+}
+
+// ---------- Clima ----------
+
+private val MESES = listOf("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
+
+private fun nomeMes(chave: String): String = MESES[chave.substring(5, 7).toInt() - 1]
+
+@Composable
+fun ClimaTela(cidade: String, onCidade: (String) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var carregando by remember { mutableStateOf(false) }
+    var erro by remember { mutableStateOf<String?>(null) }
+    var clima by remember { mutableStateOf<Clima?>(null) }
+
+    Tela {
+        Titulo("Chuva da minha lavoura")
+        Campo("Cidade (ex.: Machado)", cidade, onCidade, numerico = false)
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !carregando && cidade.isNotBlank(),
+            onClick = {
+                scope.launch {
+                    carregando = true
+                    erro = null
+                    try {
+                        val c = ClimaApi.buscarCidade(cidade) ?: throw IllegalStateException("Cidade não encontrada.")
+                        clima = ClimaApi.carregar(c)
+                    } catch (e: Exception) {
+                        clima = null
+                        erro = if (e is IllegalStateException) e.message else "Sem conexão ou serviço indisponível."
+                    } finally {
+                        carregando = false
+                    }
+                }
+            },
+        ) { Text(if (carregando) "Carregando…" else "Ver chuvas") }
+
+        erro?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
+        clima?.let { c ->
+            val seco = c.mensalMm.minByOrNull { it.second }
+            val umido = c.mensalMm.maxByOrNull { it.second }
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(c.cidade, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Linha("Chuva nos últimos 12 meses", "${fmt(c.totalAnoMm)} mm")
+                    seco?.let { Linha("Mês mais seco", "${nomeMes(it.first)} (${fmt(it.second)} mm)") }
+                    umido?.let { Linha("Mês mais chuvoso", "${nomeMes(it.first)} (${fmt(it.second)} mm)") }
+                    Linha("Próximos 16 dias (previsão)", "${fmt(c.previsao16DiasMm)} mm")
+                }
+            }
+            val max = c.mensalMm.maxOf { it.second }.coerceAtLeast(1.0)
+            Text("Chuva por mês (mm)", fontWeight = FontWeight.Bold)
+            Row(
+                Modifier.fillMaxWidth().height(130.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                c.mensalMm.forEach { (mes, mm) ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            Modifier
+                                .width(16.dp)
+                                .height((100.0 * mm / max).dp.coerceAtLeast(2.dp))
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                        Text(nomeMes(mes), fontSize = 9.sp)
+                    }
+                }
+            }
+            Text("Fonte: Open-Meteo (reanálise ERA5 e modelo de previsão).", style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+// ---------- Agrônomos ----------
+
+data class Agronomo(val nome: String, val especialidade: String, val regiao: String, val whatsapp: String)
+
+// DADOS DE EXEMPLO: substitua pelos parceiros reais (número com DDI+DDD, só dígitos).
+private val AGRONOMOS = listOf(
+    Agronomo("Agrônomo(a) Exemplo 1", "Nutrição e adubação", "Sul de Minas", "5500000000000"),
+    Agronomo("Agrônomo(a) Exemplo 2", "Pragas e doenças", "Sul de Minas", "5500000000000"),
+    Agronomo("Agrônomo(a) Exemplo 3", "Implantação de lavoura", "Cerrado Mineiro", "5500000000000"),
+)
+
+@Composable
+fun AgronomosTela() {
+    val ctx = LocalContext.current
+    Tela {
+        Titulo("Fale com um agrônomo")
+        Text("Tire dúvidas com profissionais habilitados. (Lista de exemplo: cadastre os parceiros reais.)")
+        AGRONOMOS.forEach { a ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(a.nome, fontWeight = FontWeight.Bold)
+                    Text(a.especialidade)
+                    Text(a.regiao, style = MaterialTheme.typography.bodySmall)
+                    Button(onClick = {
+                        val msg = Uri.encode("Olá! Vim pelo app Kafzin e preciso de orientação na minha lavoura de café.")
+                        abrir(ctx, "https://wa.me/${a.whatsapp}?text=$msg")
+                    }) { Text("Chamar no WhatsApp") }
+                }
+            }
+        }
+    }
+}
+
+// ---------- Lojas ----------
+
+@Composable
+fun LojasTela(cidade: String, onCidade: (String) -> Unit) {
+    val ctx = LocalContext.current
+    fun buscar(termo: String) = abrir(ctx, "geo:0,0?q=" + Uri.encode("$termo $cidade".trim()))
+    Tela {
+        Titulo("Lojas e insumos")
+        Text("Encontre agropecuárias e cooperativas perto de você. Deixe a cidade em branco para usar sua localização.")
+        Campo("Cidade", cidade, onCidade, numerico = false)
+        Button(onClick = { buscar("agropecuária insumos agrícolas") }, modifier = Modifier.fillMaxWidth()) {
+            Text("Buscar agropecuárias no mapa")
+        }
+        OutlinedButton(onClick = { buscar("cooperativa de café") }, modifier = Modifier.fillMaxWidth()) {
+            Text("Buscar cooperativas de café")
+        }
+    }
+}
