@@ -18,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,10 +28,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.util.UUID
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Repo.init(applicationContext)
         setContent { KafzinTheme { App() } }
     }
 }
@@ -116,12 +118,14 @@ fun Campo(label: String, valor: String, onChange: (String) -> Unit, numerico: Bo
 fun App() {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var cidade by rememberSaveable { mutableStateOf("") }
+    var lavouraAberta by rememberSaveable { mutableStateOf<String?>(null) }
+    var apoioSub by rememberSaveable { mutableIntStateOf(0) }
     val itens = listOf(
         "Início" to Icons.Default.Home,
         "Calculadora" to Icons.Default.Build,
+        "Lavouras" to Icons.Default.Create,
         "Clima" to Icons.Default.DateRange,
-        "Agrônomos" to Icons.Default.Person,
-        "Lojas" to Icons.Default.ShoppingCart,
+        "Apoio" to Icons.Default.Person,
     )
     Scaffold(
         topBar = {
@@ -148,12 +152,28 @@ fun App() {
     ) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             when (tab) {
-                0 -> InicioTela(onIr = { tab = it })
-                1 -> CalculadoraTela()
-                2 -> ClimaTela(cidade) { cidade = it }
-                3 -> AgronomosTela()
-                else -> LojasTela(cidade) { cidade = it }
+                0 -> InicioTela(onIr = { tab = it }, onApoio = { apoioSub = it; tab = 4 })
+                1 -> CalculadoraTela(cidade) { id -> lavouraAberta = id; tab = 2 }
+                2 -> LavourasTela(lavouraAberta, { lavouraAberta = it }) { tab = 1 }
+                3 -> ClimaTela(cidade) { cidade = it }
+                else -> ApoioTela(apoioSub, { apoioSub = it }, cidade) { cidade = it }
             }
+        }
+    }
+}
+
+@Composable
+fun ApoioTela(sub: Int, onSub: (Int) -> Unit, cidade: String, onCidade: (String) -> Unit) {
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(selected = sub == 0, onClick = { onSub(0) }, label = { Text("Agrônomos") })
+            FilterChip(selected = sub == 1, onClick = { onSub(1) }, label = { Text("Lojas de insumos") })
+        }
+        Box(Modifier.weight(1f)) {
+            if (sub == 0) AgronomosTela() else LojasTela(cidade, onCidade)
         }
     }
 }
@@ -185,15 +205,16 @@ fun Atalho(titulo: String, sub: String, icone: ImageVector, onClick: () -> Unit)
 }
 
 @Composable
-fun InicioTela(onIr: (Int) -> Unit) {
+fun InicioTela(onIr: (Int) -> Unit, onApoio: (Int) -> Unit) {
     val ctx = LocalContext.current
     Tela {
         Titulo("Olá, produtor! ☕")
-        Text("Simule sua lavoura, acompanhe a chuva, fale com agrônomos e encontre insumos, tudo em um só lugar.")
+        Text("Simule sua lavoura, registre custos e colheitas, acompanhe a chuva, fale com agrônomos e encontre insumos, tudo em um só lugar.")
         Atalho("Calculadora de lavoura", "Pés, adubo e investimento", Icons.Default.Build) { onIr(1) }
-        Atalho("Chuva da minha lavoura", "Histórico de 12 meses e previsão", Icons.Default.DateRange) { onIr(2) }
-        Atalho("Fale com um agrônomo", "Orientação técnica por WhatsApp", Icons.Default.Person) { onIr(3) }
-        Atalho("Lojas de insumos", "Agropecuárias perto de você", Icons.Default.ShoppingCart) { onIr(4) }
+        Atalho("Minhas lavouras", "Histórico e custos, do plantio à colheita", Icons.Default.Create) { onIr(2) }
+        Atalho("Chuva da minha lavoura", "Histórico de 12 meses e previsão", Icons.Default.DateRange) { onIr(3) }
+        Atalho("Fale com um agrônomo", "Orientação técnica por WhatsApp", Icons.Default.Person) { onApoio(0) }
+        Atalho("Lojas de insumos", "Agropecuárias perto de você", Icons.Default.ShoppingCart) { onApoio(1) }
         Titulo("Biblioteca técnica")
         LINKS.forEach { (t, u) ->
             OutlinedButton(onClick = { abrir(ctx, u) }, modifier = Modifier.fillMaxWidth()) { Text(t) }
@@ -204,7 +225,7 @@ fun InicioTela(onIr: (Int) -> Unit) {
 // ---------- Calculadora ----------
 
 @Composable
-fun CalculadoraTela() {
+fun CalculadoraTela(cidade: String, onSalva: (String) -> Unit) {
     val ctx = LocalContext.current
     var area by rememberSaveable { mutableStateOf("10000") }
     var morro by rememberSaveable { mutableStateOf(false) }
@@ -216,6 +237,7 @@ fun CalculadoraTela() {
     var muda by rememberSaveable { mutableStateOf("") }
     var adubo by rememberSaveable { mutableStateOf("") }
     var resultado by remember { mutableStateOf<Resultado?>(null) }
+    var salvando by remember { mutableStateOf(false) }
     var erro by remember { mutableStateOf<String?>(null) }
     val v = VARIEDADES[varIdx]
 
@@ -301,12 +323,40 @@ fun CalculadoraTela() {
                 onClick = { compartilhar(ctx, resumo(r, v.nome)) },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Compartilhar") }
+            Button(
+                onClick = { salvando = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Salvar como lavoura (iniciar histórico)") }
         }
 
         Text(
             "⚠️ Estimativas orientativas. Espaçamento, densidade e adubação variam conforme análise de solo, " +
                 "altitude e manejo. Consulte sempre um Engenheiro Agrônomo habilitado.",
             style = MaterialTheme.typography.bodySmall,
+        )
+    }
+
+    val rAtual = resultado
+    if (salvando && rAtual != null) {
+        SalvarLavouraDialog(
+            nomeInicial = "${v.nome} ${Repo.lavouras.size + 1}",
+            onFechar = { salvando = false },
+            onSalvar = { nome ->
+                val nova = Lavoura(
+                    id = UUID.randomUUID().toString(),
+                    nome = nome,
+                    cidade = cidade,
+                    criadaEm = LocalDate.now().toString(),
+                    areaM2 = area.toNum() ?: 0.0,
+                    variedade = v.nome,
+                    pesPlanejados = rAtual.pes,
+                    custoPlanejado = (rAtual.custoMudas ?: 0.0) + (rAtual.custoAdubo ?: 0.0),
+                    lancamentos = emptyList(),
+                )
+                Repo.adicionarLavoura(nova)
+                salvando = false
+                onSalva(nova.id)
+            },
         )
     }
 }
