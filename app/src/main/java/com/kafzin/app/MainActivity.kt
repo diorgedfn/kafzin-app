@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Repo.init(applicationContext)
+        Diretorio.init(applicationContext)
         setContent { KafzinTheme { App() } }
     }
 }
@@ -162,22 +163,6 @@ fun App() {
     }
 }
 
-@Composable
-fun ApoioTela(sub: Int, onSub: (Int) -> Unit, cidade: String, onCidade: (String) -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            FilterChip(selected = sub == 0, onClick = { onSub(0) }, label = { Text("Agrônomos") })
-            FilterChip(selected = sub == 1, onClick = { onSub(1) }, label = { Text("Lojas de insumos") })
-        }
-        Box(Modifier.weight(1f)) {
-            if (sub == 0) AgronomosTela() else LojasTela(cidade, onCidade)
-        }
-    }
-}
-
 // ---------- Início ----------
 
 private val LINKS = listOf(
@@ -210,11 +195,13 @@ fun InicioTela(onIr: (Int) -> Unit, onApoio: (Int) -> Unit) {
     Tela {
         Titulo("Olá, produtor! ☕")
         Text("Simule sua lavoura, registre custos e colheitas, acompanhe a chuva, fale com agrônomos e encontre insumos, tudo em um só lugar.")
+        BannerCafe()
         Atalho("Calculadora de lavoura", "Pés, adubo e investimento", Icons.Default.Build) { onIr(1) }
         Atalho("Minhas lavouras", "Histórico e custos, do plantio à colheita", Icons.Default.Create) { onIr(2) }
         Atalho("Chuva da minha lavoura", "Histórico de 12 meses e previsão", Icons.Default.DateRange) { onIr(3) }
-        Atalho("Fale com um agrônomo", "Orientação técnica por WhatsApp", Icons.Default.Person) { onApoio(0) }
-        Atalho("Lojas de insumos", "Agropecuárias perto de você", Icons.Default.ShoppingCart) { onApoio(1) }
+        Atalho("Agrônomos e profissionais", "Orientação técnica por WhatsApp", Icons.Default.Person) { onApoio(0) }
+        Atalho("Lojas de insumos", "Lojas cadastradas e agropecuárias perto de você", Icons.Default.ShoppingCart) { onApoio(1) }
+        Atalho("Financiamento", "Contatos de gerentes de crédito rural", Icons.Default.Info) { onApoio(2) }
         Titulo("Biblioteca técnica")
         LINKS.forEach { (t, u) ->
             OutlinedButton(onClick = { abrir(ctx, u) }, modifier = Modifier.fillMaxWidth()) { Text(t) }
@@ -431,58 +418,6 @@ fun ClimaTela(cidade: String, onCidade: (String) -> Unit) {
                 }
             }
             Text("Fonte: Open-Meteo (reanálise ERA5 e modelo de previsão).", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-// ---------- Agrônomos ----------
-
-data class Agronomo(val nome: String, val especialidade: String, val regiao: String, val whatsapp: String)
-
-// DADOS DE EXEMPLO: substitua pelos parceiros reais (número com DDI+DDD, só dígitos).
-private val AGRONOMOS = listOf(
-    Agronomo("Agrônomo(a) Exemplo 1", "Nutrição e adubação", "Sul de Minas", "5500000000000"),
-    Agronomo("Agrônomo(a) Exemplo 2", "Pragas e doenças", "Sul de Minas", "5500000000000"),
-    Agronomo("Agrônomo(a) Exemplo 3", "Implantação de lavoura", "Cerrado Mineiro", "5500000000000"),
-)
-
-@Composable
-fun AgronomosTela() {
-    val ctx = LocalContext.current
-    Tela {
-        Titulo("Fale com um agrônomo")
-        Text("Tire dúvidas com profissionais habilitados. (Lista de exemplo: cadastre os parceiros reais.)")
-        AGRONOMOS.forEach { a ->
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(a.nome, fontWeight = FontWeight.Bold)
-                    Text(a.especialidade)
-                    Text(a.regiao, style = MaterialTheme.typography.bodySmall)
-                    Button(onClick = {
-                        val msg = Uri.encode("Olá! Vim pelo app Kafzin e preciso de orientação na minha lavoura de café.")
-                        abrir(ctx, "https://wa.me/${a.whatsapp}?text=$msg")
-                    }) { Text("Chamar no WhatsApp") }
-                }
-            }
-        }
-    }
-}
-
-// ---------- Lojas ----------
-
-@Composable
-fun LojasTela(cidade: String, onCidade: (String) -> Unit) {
-    val ctx = LocalContext.current
-    fun buscar(termo: String) = abrir(ctx, "geo:0,0?q=" + Uri.encode("$termo $cidade".trim()))
-    Tela {
-        Titulo("Lojas e insumos")
-        Text("Encontre agropecuárias e cooperativas perto de você. Deixe a cidade em branco para usar sua localização.")
-        Campo("Cidade", cidade, onCidade, numerico = false)
-        Button(onClick = { buscar("agropecuária insumos agrícolas") }, modifier = Modifier.fillMaxWidth()) {
-            Text("Buscar agropecuárias no mapa")
-        }
-        OutlinedButton(onClick = { buscar("cooperativa de café") }, modifier = Modifier.fillMaxWidth()) {
-            Text("Buscar cooperativas de café")
         }
     }
 }
